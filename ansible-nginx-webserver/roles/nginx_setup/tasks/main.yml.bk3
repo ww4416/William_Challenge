@@ -1,0 +1,140 @@
+---
+- name: Setup Nginx web server with SSL
+  hosts: localhost
+  become: yes
+  vars:
+    website_content: |
+      <html>
+      <head><title>Hello World</title></head>
+      <body><h1>Hello World!</h1></body>
+      </html>
+
+    # Set paths conditionally for macOS and Linux
+    nginx_conf_path: "{{ '/opt/homebrew/etc/nginx/nginx.conf' if ansible_facts['os_family'] == 'Darwin' else '/etc/nginx/nginx.conf' }}"
+    website_root: "{{ '/usr/local/var/www/test_site' if ansible_facts['os_family'] == 'Darwin' else '/var/www/test_site' }}"
+    ssl_dir: "{{ '/opt/homebrew/etc/nginx/ssl' if ansible_facts['os_family'] == 'Darwin' else '/etc/nginx/ssl' }}"
+    ssl_certificate: "{{ ssl_dir }}/selfsigned.crt"
+    ssl_key: "{{ ssl_dir }}/selfsigned.key"
+
+  tasks:
+    # Install Nginx
+    - name: Install Nginx on macOS
+      homebrew:
+        name: nginx
+        state: present
+      when: ansible_facts['os_family'] == 'Darwin'
+
+    - name: Install Nginx on Debian-based systems
+      apt:
+        name: nginx
+        state: present
+        update_cache: yes
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Install Nginx on RedHat-based systems
+      yum:
+        name: nginx
+        state: present
+      when: ansible_facts['os_family'] == 'RedHat'
+
+    # Stop Nginx before configuration changes
+    - name: Ensure Nginx service is stopped
+      service:
+        name: nginx
+        state: stopped
+      ignore_errors: yes
+
+    # Create directory for the website
+    - name: Create a directory for the website
+      file:
+        path: "{{ website_root }}"
+        state: directory
+        mode: '0755'
+
+    # Serve a custom webpage
+    - name: Serve a custom webpage
+      copy:
+        dest: "{{ website_root }}/index.html"
+        content: "{{ website_content }}"
+
+    # Remove existing SSL certificate and key if they exist
+    - name: Remove existing SSL certificate and key
+      file:
+        path: "{{ item }}"
+        state: absent
+      with_items:
+        - "{{ ssl_certificate }}"
+        - "{{ ssl_key }}"
+
+    # Create directory for SSL certificates
+    - name: Create directory for SSL certificates
+      file:
+        path: "{{ ssl_dir }}"
+        state: directory
+        mode: '0755'
+
+    # Generate private key
+    - name: Generate private key
+      command: openssl genrsa -out "{{ ssl_key }}" 2048
+      args:
+        creates: "{{ ssl_key }}"
+
+    # Generate self-signed certificate
+    - name: Generate self-signed certificate
+      command: >
+        openssl req -new -x509 -key "{{ ssl_key }}" -out "{{ ssl_certificate }}"
+        -days 365
+        -subj "/C=US/ST=State/L=City/O=Organization/OU=Org Unit/CN=localhost"
+      args:
+        creates: "{{ ssl_certificate }}"
+
+    # Configure Nginx for SSL and redirect HTTP to HTTPS
+    - name: Configure Nginx for SSL and redirect HTTP to HTTPS
+      copy:
+        dest: "{{ nginx_conf_path }}"
+        content: |
+          worker_processes  1;
+
+          events {
+              worker_connections  1024;
+          }
+
+          http {
+              # Redirect HTTP to HTTPS
+              server {
+                  listen       80;
+                  server_name  localhost;
+
+                  return 301 https://$host$request_uri;
+              }
+
+              # HTTPS server
+              server {
+                  listen       443 ssl;
+                  server_name  localhost;
+
+                  ssl_certificate     {{ ssl_certificate }};
+                  ssl_certificate_key {{ ssl_key }};
+
+                  ssl_protocols       TLSv1.2 TLSv1.3;
+                  ssl_ciphers         HIGH:!aNULL:!MD5;
+
+                  location / {
+                      root   {{ website_root }};
+                      index  index.html;
+                  }
+              }
+          }
+
+    # Start Nginx service
+    - name: Start Nginx on macOS
+      shell: brew services restart nginx
+      when: ansible_facts['os_family'] == 'Darwin'
+      ignore_errors: yes
+
+    - name: Start and enable Nginx on Linux
+      service:
+        name: nginx
+        state: started
+        enabled: yes
+      when: ansible_facts['os_family'] in ['Debian', 'RedHat']
