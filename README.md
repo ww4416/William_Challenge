@@ -5,13 +5,7 @@ This page is secured so only ports 80 and 443 are accessible, and that port 80 f
 
 This repo also contains tests in **tests** dir to ensure the ansible play deployed ngnix properly with correct rules, and webpage is correct.
 
-~~This was done on macOS with **homebrew**. the ansible play assumes the user already has brew installed on their machine.~~
-
-~~### To install homebrew on mac, run the following in your terminal:
-  ```/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"```~~
-
 ### The ansible play can be run with the following command:
-  ~~```ansible-playbook -i localhost, playbook.yml --ask-become-pass```~~ 
   
   ```sudo ansible-playbook -i localhost, setup_nginx.yml --connection=local -vvv ```
   
