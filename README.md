@@ -16,3 +16,5 @@ This was done on macOS with **homebrew**. the ansible play assumes the user alre
 
 ### Tests in the tests directory can be executed witeh the following command:
   ```go test -v```
+
+(c) 2024 
