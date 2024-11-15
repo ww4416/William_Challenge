@@ -11,7 +11,9 @@ This was done on macOS with **homebrew**. the ansible play assumes the user alre
   ```/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"```
 
 ### The ansible play can be run with the following command:
-  ```ansible-playbook -i localhost, playbook.yml --ask-become-pass```
+  ~~```ansible-playbook -i localhost, playbook.yml --ask-become-pass```~~
+  ```sudo ansible-playbook -i localhost, setup_nginx.yml --connection=local -vvv ```
+  
   *note: ask-become-pass is sudo password*
 
 ### Tests in the tests directory can be executed witeh the following command:
